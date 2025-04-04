@@ -1,54 +1,37 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { OPENWEATHERMAP_API_KEY } from '$env/static/private';
-
-interface WeatherData {
-	name: string;
-	dt: number;
-	sys: {
-		country: string;
-		sunrise: number;
-		sunset: number;
-	};
-	main: {
-		temp: number;
-		feels_like: number;
-		humidity: number;
-		pressure: number;
-		temp_min: number;
-		temp_max: number;
-	};
-	weather: Array<{
-		main: string;
-		description: string;
-	}>;
-	wind: {
-		speed: number;
-	};
-}
-
-interface ForecastItem {
-	dt: number;
-	main: {
-		temp: number;
-		temp_min: number;
-		temp_max: number;
-	};
-	weather: Array<{
-		main: string;
-		description: string;
-	}>;
-}
+import type { WeatherData, ForecastItem } from './types';
 
 interface ForecastResponse {
 	list: ForecastItem[];
 }
 
-export const GET: RequestHandler = async ({ url }) => {
+interface RequestData {
+	isOffline?: boolean;
+	error?: string;
+}
+
+export const GET: RequestHandler = async ({ url, request }) => {
 	const city = url.searchParams.get('city');
 
 	if (!city) {
 		return json({ error: 'City parameter is required' }, { status: 400 });
+	}
+
+	// Check if the request has the isOffline flag (set by service worker)
+	let isOffline = false;
+	try {
+		const requestData = (await request.clone().json()) as RequestData;
+		isOffline = !!requestData.isOffline;
+
+		// If we're offline and the service worker is returning cached data
+		if (isOffline) {
+			// We'll let the cached data flow through from the service worker
+			return json(await request.json());
+		}
+	} catch (e) {
+		// Not JSON or doesn't have the expected structure, assume it's a normal request
 	}
 
 	try {
@@ -84,10 +67,11 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		return json({
 			weatherData,
-			forecast
+			forecast,
+			isOffline: false
 		});
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
-		return json({ error: errorMessage }, { status: 500 });
+		return json({ error: errorMessage, isOffline: false }, { status: 500 });
 	}
 };

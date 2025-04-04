@@ -8,17 +8,55 @@
 		Wind,
 		Droplets,
 		Thermometer,
-		Loader
+		Loader,
+		WifiOff
 	} from 'lucide-svelte';
 	import type { ComponentType } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 
 	export let data: PageData;
 
 	let city = data.city || '';
 	let loading = false;
+	let isOffline = false;
+	let showOfflineNotice = false;
+
+	// Check network status
+	const checkOnlineStatus = () => {
+		isOffline = !navigator.onLine;
+		return isOffline;
+	};
+
+	onMount(() => {
+		// Initial check
+		checkOnlineStatus();
+
+		// Setup event listeners for online/offline status
+		window.addEventListener('online', () => {
+			isOffline = false;
+			if (city) {
+				// Reload data when coming back online and we have a city
+				loading = true;
+				goto(`?city=${encodeURIComponent(city)}`).then(() => {
+					loading = false;
+					showOfflineNotice = false;
+				});
+			}
+		});
+
+		window.addEventListener('offline', () => {
+			isOffline = true;
+			showOfflineNotice = true;
+		});
+
+		// Check if we're showing cached data
+		if (data.weatherData && data.isOffline) {
+			showOfflineNotice = true;
+		}
+	});
 
 	// Weather icon mapping
 	const getWeatherIcon = (condition: string): ComponentType => {
@@ -82,6 +120,20 @@
 >
 	<div class="container mx-auto px-4 py-8">
 		<h1 class="mb-8 text-center text-3xl font-bold text-gray-800">Weather Dashboard</h1>
+
+		<!-- Offline Alert -->
+		{#if isOffline || showOfflineNotice}
+			<div
+				class="mx-auto mb-4 flex max-w-md items-center rounded-lg bg-amber-100 p-3 text-amber-700"
+			>
+				<WifiOff class="mr-2 h-5 w-5" />
+				<span>
+					{isOffline
+						? "You're offline. Limited functionality available."
+						: "You're viewing cached data from your last online session."}
+				</span>
+			</div>
+		{/if}
 
 		<!-- Search Form -->
 		<div class="mx-auto mb-8 max-w-md">

@@ -1,0 +1,17 @@
+{
+  "short_name": "Weather",
+  "name": "Weather Dashboard",
+  "description": "Weather application with offline support",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#f0f9ff",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#3b82f6"
+}

@@ -1,47 +1,11 @@
 import type { Actions, PageServerLoad } from './$types';
-
-interface WeatherData {
-	name: string;
-	dt: number;
-	sys: {
-		country: string;
-		sunrise: number;
-		sunset: number;
-	};
-	main: {
-		temp: number;
-		feels_like: number;
-		humidity: number;
-		pressure: number;
-		temp_min: number;
-		temp_max: number;
-	};
-	weather: Array<{
-		main: string;
-		description: string;
-	}>;
-	wind: {
-		speed: number;
-	};
-}
-
-interface ForecastItem {
-	dt: number;
-	main: {
-		temp: number;
-		temp_min: number;
-		temp_max: number;
-	};
-	weather: Array<{
-		main: string;
-		description: string;
-	}>;
-}
+import type { WeatherData, ForecastItem } from './api/weather/types';
 
 interface ApiResponse {
 	weatherData: WeatherData;
 	forecast: ForecastItem[];
 	error?: string;
+	isOffline?: boolean;
 }
 
 export const load: PageServerLoad = async ({ url, fetch }) => {
@@ -52,7 +16,8 @@ export const load: PageServerLoad = async ({ url, fetch }) => {
 			weatherData: null,
 			forecast: [],
 			city: '',
-			error: null
+			error: null,
+			isOffline: false
 		};
 	}
 
@@ -60,7 +25,7 @@ export const load: PageServerLoad = async ({ url, fetch }) => {
 		const response = await fetch(`/api/weather?city=${encodeURIComponent(city)}`);
 		const data = (await response.json()) as ApiResponse;
 
-		if (!response.ok) {
+		if (!response.ok && !data.isOffline) {
 			throw new Error(data.error || 'Failed to fetch weather data');
 		}
 
@@ -68,7 +33,8 @@ export const load: PageServerLoad = async ({ url, fetch }) => {
 			weatherData: data.weatherData,
 			forecast: data.forecast,
 			city,
-			error: null
+			error: null,
+			isOffline: data.isOffline || false
 		};
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
@@ -76,7 +42,8 @@ export const load: PageServerLoad = async ({ url, fetch }) => {
 			weatherData: null,
 			forecast: [],
 			city,
-			error: errorMessage
+			error: errorMessage,
+			isOffline: false
 		};
 	}
 };
